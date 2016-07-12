@@ -1,0 +1,101 @@
+q1: No of users by states
+
+users = LOAD '/user/cloudera/users.csv' USING PigStorage (',') AS (user_id:chararray, name:chararray, state:chararray);
+users_group = Group users by state;
+count_user = foreach users_group Generate FLATTEN(users.state) , COUNT(users.user_id) as cnt;
+result = DISTINCT count_user;
+dump result;
+
+q2: 5 states with total users
+
+users = LOAD '/user/cloudera/users.csv' USING PigStorage (',') AS (user_id:chararray, name:chararray, state:chararray);
+users_group = Group users by state;
+count_user = foreach users_group Generate FLATTEN(users.state) , COUNT(users.user_id) as cnt;
+count_user_flat = DISTINCT count_user;
+result = ORDER count_user_flat BY cnt DESC;
+finalresult =  LIMIT result 5;
+Dump finalresult;
+
+q3: tweets that containword "Happy" ordered by tweet_id
+
+users = LOAD '/user/cloudera/tweets.csv' USING PigStorage (',') AS (tweet_id:chararray, tweet:chararray, username:chararray);
+users_happy = filter users By tweet matches '.*Happy.*';
+result = foreach users_happy generate tweet,tweet_id;
+final_result = order result by tweet_id;
+Dump final_result;
+
+
+
+q4: No.of users in CA with more than 1 tweet
+
+tweets = LOAD '/user/cloudera/tweets.csv' USING PigStorage (',') AS (tweet_id:chararray, tweet:chararray, username:chararray);
+
+users = LOAD '/user/cloudera/users.csv' USING PigStorage (',') AS (user_id:chararray, name:chararray, state:chararray);
+
+
+tw_us = join tweets by username, users by user_id;
+
+tw_us_CA = FILTER tw_us by state == 'CA';
+
+Grp = group tw_us_CA by username;
+
+res = foreach Grp generate flatten(tw_us_CA.username), COUNT(tw_us_CA.tweet)as cnt;
+
+result = distinct res;
+
+final_result = FILTER result BY cnt>1;
+
+DUMP final_result;
+
+
+q5: Top 20 most active users
+
+tweets = LOAD '/user/cloudera/tweets.csv' USING PigStorage (',') AS (tweet_id:chararray, tweet:chararray, username:chararray);
+users = LOAD '/user/cloudera/users.csv' USING PigStorage (',') AS (user_id:chararray, name:chararray, state:chararray);
+t_u = join tweets by username, users by user_id;
+t_u_g = group t_u by username;
+res = foreach t_u_g generate (t_u.username) , COUNT(t_u.tweet)as cnt;
+result = FILTER res by cnt > 1;
+finresult = DISTINCT result;
+DUMP finresult;
+
+
+
+q6: No. of users that posted no tweets
+
+tweets = LOAD '/user/cloudera/tweets.csv' USING PigStorage (',') AS (tweet_id:chararray, tweet:chararray, username:chararray);
+users = LOAD '/user/cloudera/users.csv' USING PigStorage (',') AS (user_id:chararray, name:chararray, state:chararray);
+total = join tweets by username, users by user_id;
+res = group total by username;
+result = foreach res generate flatten(total.username), COUNT(total.tweet)as cnt;
+finres = FILTER result BY cnt ==0;
+DUMP finres;
+
+
+
+q7: custom Udf to replace "Happy with "Sad"
+
+
+content sof StringUDF.java:
+ 
+package StringReplace;
+
+import java.io.IOException; 
+import org.apache.pig.EvalFunc; 
+import org.apache.pig.data.Tuple;
+
+
+public class StringUDF extends EvalFunc<String>{
+	
+	public String exec(Tuple input) throws IOException{
+		if(input == null || input.size() == 0)
+			return null;
+		String str = (String)input.get(0);
+		 String myOutput = str.replaceAll("Happy", "Sad");
+		 return myOutput;
+	}
+
+	
+	
+}
+
